@@ -1,0 +1,34 @@
+# ===== Java / Maven =====
+target/
+*.class
+*.jar
+*.war
+*.iml
+
+# ===== IDE =====
+.idea/
+.vscode/
+.settings/
+.project
+.classpath
+
+# ===== Node / 前端 =====
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+
+# ===== 系统/临时 =====
+.DS_Store
+Thumbs.db
+*.log
+logs/
+
+# ===== 本地配置（含密码等敏感信息，不入库）=====
+application-local.yml
+application-prod.yml
+*.env
+
+# ===== 压缩包 =====
+*.zip
+*.rar

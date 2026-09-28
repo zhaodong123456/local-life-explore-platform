@@ -1,0 +1,99 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: explore-platform
+  # MySQL 数据源（请按本机实际账号密码修改）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/explore_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 3000ms
+  # RabbitMQ
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    # 消息可靠性：生产者确认（阶段4使用，脚手架阶段先配置）
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        # 消费失败不重回队列，防止故障消息死循环重投打爆DB
+        default-requeue-rejected: false
+        # 手动 ack：消费成功才确认，失败进入重试/DLQ
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2.0
+          max-interval: 10000ms
+
+# 秒杀接口本地限流（两级限流中的接口级；一级在网关层）
+seckill:
+  rate-limit:
+    # 全局单机每秒放行数（压测时可通过 -Dseckill.rate-limit.global-qps 调整）
+    global-qps: 500
+    # 单用户窗口内限次（防脚本连点刷单）
+    per-user-count: 3
+    per-user-window-seconds: 1
+
+# MyBatis-Plus
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# JWT 配置（生产环境请更换 secret）
+jwt:
+  # HS256 要求密钥至少 32 字节（256 位）
+  secret: explore-platform-jwt-secret-key-please-change-0123456789abcdef
+  # Token 有效期：24 小时（毫秒）
+  expiration: 86400000
+
+# Knife4j 接口文档
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+# 商铺多级缓存配置（阶段3）
+cache:
+  shop:
+    enabled: true
+    prewarm-enabled: true
+    prewarm-count: 20
+    bloom-enabled: true
+    bloom-expected-insertions: 10000
+    bloom-false-probability: 0.01
+    # L1 Caffeine：TTL 短（5min + 0~2min 抖动）
+    caffeine-ttl: 5m
+    caffeine-jitter: 2m
+    caffeine-null-ttl: 30s
+    caffeine-null-jitter: 30s
+    caffeine-max-size: 10000
+    # L2 Redis：TTL 长（30min + 0~10min 抖动），与 L1 错开
+    redis-ttl: 30m
+    redis-jitter: 10m
+    redis-null-ttl: 2m
+    redis-null-jitter: 1m
+    lock-wait-time: 5s
+    lock-lease-time: 30s
+
+logging:
+  level:
+    # 压测/验证期间观察回源次数；阶段6可调回
+    com.explore.platform: info

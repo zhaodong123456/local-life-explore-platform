@@ -1,0 +1,126 @@
+# 本地生活探店平台 Docker 一键部署编排
+# 用法：docker compose up -d --build
+# 说明：MySQL / Redis / RabbitMQ 三个中间件带健康检查，
+#       backend 通过 depends_on + condition: service_healthy 等待中间件就绪后再启动。
+
+services:
+  # ---------- MySQL 8 ----------
+  mysql:
+    image: mysql:8.0
+    container_name: explore-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root          # 与 backend 的 SPRING_DATASOURCE_PASSWORD 对应
+      MYSQL_DATABASE: explore_platform   # 首次启动自动建库
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      # 首次启动自动执行建库脚本（14 张表 + 测试数据，可重复执行）
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s                  # MySQL 首次初始化较慢，多给点时间
+    networks:
+      - explore-net
+
+  # ---------- Redis 7 ----------
+  redis:
+    image: redis:7
+    container_name: explore-redis
+    restart: unless-stopped
+    # 开启 AOF 持久化
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - explore-net
+
+  # ---------- RabbitMQ ----------
+  # 注意：项目实测 RabbitMQ 4.3.6 与 Erlang/OTP 29 不兼容（本机起 Erlang 崩溃 dump），
+  # 因此容器统一使用 3.13 稳定版 + 管理插件，避免版本踩坑。
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: explore-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest       # 与 backend 的 SPRING_RABBITMQ_USERNAME 对应
+      RABBITMQ_DEFAULT_PASS: guest
+      TZ: Asia/Shanghai
+    ports:
+      - "5672:5672"                      # AMQP 协议端口
+      - "15672:15672"                    # 管理控制台 http://localhost:15672 (guest/guest)
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - explore-net
+
+  # ---------- 后端 SpringBoot ----------
+  backend:
+    build: ./backend
+    container_name: explore-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      # 用 SPRING_ 大写下划线环境变量覆盖 application.yml 中的 localhost 连接
+      # spring.datasource.url -> SPRING_DATASOURCE_URL（主机名换成 compose 服务名）
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/explore_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      # spring.data.redis.host/port -> SPRING_DATA_REDIS_HOST / SPRING_DATA_REDIS_PORT
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      # spring.rabbitmq.* -> SPRING_RABBITMQ_*
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: "5672"
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      TZ: Asia/Shanghai
+    ports:
+      - "8080:8080"
+    networks:
+      - explore-net
+
+  # ---------- 前端 Vue3（Nginx 托管 dist）----------
+  frontend:
+    build: ./frontend
+    container_name: explore-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"                          # 访问入口 http://localhost
+    networks:
+      - explore-net
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:
+
+networks:
+  explore-net:
+    driver: bridge
