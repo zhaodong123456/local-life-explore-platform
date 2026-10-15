@@ -12,7 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    open: true,
+    open: false,
     proxy: {
       // 前端 /api 请求代理到后端 SpringBoot，规避开发环境跨域
       '/api': {

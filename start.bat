@@ -2,6 +2,8 @@
 
 set "JAVA_HOME=D:\Microservice\jdk\jdk17"
 set "NODE_HOME=D:\Microservice\node.js\node.js-22.22.3"
+set "ERLANG_HOME=D:\Microservice\Erlang OTP 28"
+set "RABBITMQ_HOME=D:\Microservice\RabbitMQ Server\rabbitmq_server-4.3.6"
 set "MVN=D:\Microservice\maven\apache-maven-3.8.8\bin\mvn.cmd"
 set "PROJECT=%~dp0"
 
@@ -10,6 +12,25 @@ echo ========================================
 echo   Explore Platform - Starting
 echo ========================================
 echo.
+
+rem ---- 0. RabbitMQ ----
+netstat -ano | findstr ":5672" | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 goto rabbitmq_ready
+echo [RabbitMQ] starting with Erlang OTP 28 ...
+set "PATH=%ERLANG_HOME%\bin;%RABBITMQ_HOME%\sbin;%PATH%"
+start "rabbitmq" /min "%RABBITMQ_HOME%\sbin\rabbitmq-server.bat" -detached
+set count=0
+:wait_rabbitmq
+ping -n 3 127.0.0.1 >nul
+netstat -ano | findstr ":5672" | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 goto rabbitmq_ready
+set /a count=%count%+1
+if %count% lss 15 goto wait_rabbitmq
+echo [RabbitMQ] timeout, RabbitMQ may not be installed correctly
+goto skip_rabbitmq
+:rabbitmq_ready
+echo [RabbitMQ] OK -^> port 5672
+:skip_rabbitmq
 
 rem ---- 1. Backend ----
 netstat -ano | findstr ":8080" | findstr "LISTENING" >nul 2>&1
@@ -79,5 +100,8 @@ echo   Frontend: http://localhost:5173
 echo   API Doc:  http://localhost:8080/doc.html
 echo   Stop:     double-click stop.bat
 echo ========================================
+echo.
+echo Tip: stop.bat only closes Backend+Frontend.
+echo RabbitMQ stays running for faster restart.
 echo.
 pause

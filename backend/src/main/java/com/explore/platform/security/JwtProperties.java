@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author explore-platform
  */
 @Data
-@ConfigurationProperties(prefix = "jwt")
+@ConfigurationProperties(prefix = "jwt")//JWT 配置属性类
 public class JwtProperties {
 
     /**

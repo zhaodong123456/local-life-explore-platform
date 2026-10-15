@@ -13,7 +13,7 @@ import java.util.List;
  * @author explore-platform
  */
 @Data
-@AllArgsConstructor
+@AllArgsConstructor//全参构造函数
 @Schema(description = "登录成功响应")
 public class LoginResponse implements Serializable {
 

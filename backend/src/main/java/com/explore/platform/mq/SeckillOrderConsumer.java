@@ -30,18 +30,22 @@ import java.io.IOException;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SeckillOrderConsumer {
+public class SeckillOrderConsumer {// 秒杀下单消息消费者
 
     private final VoucherOrderService voucherOrderService;
 
-    @RabbitListener(queues = RabbitMQConfig.SECKILL_ORDER_QUEUE)
+    @RabbitListener(queues = RabbitMQConfig.SECKILL_ORDER_QUEUE)// 监听秒杀下单消息队列
+    // 处理秒杀下单消息
+    //SeckillOrderMessage 秒杀下单消息
+    //Channel RabbitMQ 通道
+    //deliveryTag 消息 deliveryTag，用于手动 ack
     public void onMessage(SeckillOrderMessage message, Channel channel,
                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
         try {
             log.info("消费秒杀下单消息：orderId={}, userId={}, voucherId={}",
                     message.getOrderId(), message.getUserId(), message.getVoucherId());
             voucherOrderService.createOrderFromMessage(message);
-            channel.basicAck(deliveryTag, false);
+            channel.basicAck(deliveryTag, false);// 手动 ack，确认消息已处理
         } catch (Exception e) {
             log.error("秒杀下单消息消费失败：orderId={}, deliveryTag={}", message.getOrderId(), deliveryTag, e);
             channel.basicNack(deliveryTag, false, false);

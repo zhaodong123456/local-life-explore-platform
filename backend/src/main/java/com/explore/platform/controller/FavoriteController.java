@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "收藏-我的收藏")
 @RestController
 @RequestMapping("/api/favorites")
-@RequiredArgsConstructor
+@RequiredArgsConstructor//RequiredArgsConstructor注解，用于在构造函数中注入 final 字段
 public class FavoriteController {
 
     private final FavoriteService favoriteService;

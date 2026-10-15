@@ -27,7 +27,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
  * @author explore-platform
  */
 @Configuration
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity(prePostEnabled = true)//开启方法级权限校验
 @RequiredArgsConstructor
 public class SecurityConfig {
 

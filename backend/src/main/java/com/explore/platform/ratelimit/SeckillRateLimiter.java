@@ -37,14 +37,16 @@ public class SeckillRateLimiter {
      */
     private final AtomicInteger globalCount = new AtomicInteger(0);
 
-    private volatile long globalWindowSecond = -1;
+    private volatile long globalWindowSecond = -1;// 当前秒窗口起点
+    //volatile 确保多线程可见性
 
     public SeckillRateLimiter(SeckillRateLimitProperties props) {
         this.props = props;
-        this.userCounters = Caffeine.newBuilder()
+        // 初始化单用户计数器缓存
+        this.userCounters = Caffeine.newBuilder()//Caffeine 缓存，用于存储单用户计数器，过期自动清理，无内存泄漏
                 .expireAfterWrite(props.getPerUserWindowSeconds(), TimeUnit.SECONDS)
-                .maximumSize(100_000)
-                .build();
+                .maximumSize(100_000)// 最大缓存大小，防止内存泄漏
+                .build();// 构建缓存实例
     }
 
     /**
@@ -62,7 +64,8 @@ public class SeckillRateLimiter {
     private boolean tryGlobal() {
         long nowSecond = System.currentTimeMillis() / 1000;
         if (nowSecond != globalWindowSecond) {
-            synchronized (this) {
+            synchronized (this) {//this 是当前类实例，确保线程安全，避免竞态条件
+                //synchronized (this) 确保在当前线程内执行，避免竞态条件
                 if (nowSecond != globalWindowSecond) {
                     globalWindowSecond = nowSecond;
                     globalCount.set(0);
@@ -78,7 +81,7 @@ public class SeckillRateLimiter {
     private boolean tryPerUser(Long userId) {
         // Caffeine 的 get(key, loader) 对同一 key 的加载是原子的
         AtomicInteger counter = userCounters.get(userId, k -> new AtomicInteger(0));
-        if (counter == null) {
+        if (counter == null) {// 如果用户不存在计数器，直接放行
             return true;
         }
         synchronized (counter) {

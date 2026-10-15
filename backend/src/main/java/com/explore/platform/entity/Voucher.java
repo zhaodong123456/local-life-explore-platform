@@ -29,7 +29,7 @@ public class Voucher implements Serializable {
 
     private String rules;
 
-    private BigDecimal payValue;
+    private BigDecimal payValue;//BigDecimal 优惠券支付金额，用于存储优惠券支付金额，避免精度损失
 
     private BigDecimal actualValue;
 

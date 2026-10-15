@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("tb_favorite")
-public class Favorite implements Serializable {
+public class Favorite implements Serializable {//Serializable接口，用于序列化
 
     /**
      * 收藏用户ID（复合主键之一）

@@ -94,6 +94,7 @@ cache:
     lock-lease-time: 30s
 
 logging:
+  file:
+    name: logs/explore-platform.log
   level:
-    # 压测/验证期间观察回源次数；阶段6可调回
     com.explore.platform: info

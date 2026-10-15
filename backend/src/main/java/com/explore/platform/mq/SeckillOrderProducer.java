@@ -17,16 +17,16 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
+@RequiredArgsConstructor// 构造函数注入依赖
 public class SeckillOrderProducer {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final RabbitTemplate rabbitTemplate;// RabbitMQ 模板
 
     /**
      * 发送秒杀下单消息（同步等待 broker 接收，失败抛异常由调用方触发补偿）
      */
     public void send(SeckillOrderMessage message) {
-        try {
+        try {// 发送消息到 RabbitMQ
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.SECKILL_ORDER_EXCHANGE,
                     RabbitMQConfig.SECKILL_ORDER_ROUTING_KEY,

@@ -18,9 +18,9 @@ import com.explore.platform.vo.VoucherVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.BeanUtils;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.redisson.api.RedissonClient;// Redis 客户端，用于操作 Redis 数据库
+import org.springframework.beans.BeanUtils;// Bean 工具类，用于复制属性
+import org.springframework.data.redis.core.StringRedisTemplate;// 字符串模板，用于操作 Redis 字符串类型数据
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,7 +62,7 @@ public class VoucherServiceImpl implements VoucherService {
         // 新券默认下架，商家确认后手动上架
         voucher.setStatus(0);
         if (request.getType() == 1) {
-            validateSeckillFields(request);
+            validateSeckillFields(request);// 校验秒杀券字段
         }
         voucherMapper.insert(voucher);
 
@@ -181,7 +181,7 @@ public class VoucherServiceImpl implements VoucherService {
      * 获取优惠券并校验归属（券 → 商铺 → 商家）
      */
     private Voucher getOwnedVoucher(Long userId, Long voucherId) {
-        Long merchantId = merchantService.requireMerchantId(userId);
+        Long merchantId = merchantService.requireMerchantId(userId);// 获取当前用户已审核通过的商家ID
         Voucher voucher = voucherMapper.selectById(voucherId);
         if (voucher == null) {
             throw new BusinessException("优惠券不存在");
@@ -243,7 +243,7 @@ public class VoucherServiceImpl implements VoucherService {
             }
         }
     }
-
+    // 转换为优惠券VO
     private VoucherVO toVO(Voucher voucher) {
         VoucherVO vo = new VoucherVO();
         BeanUtils.copyProperties(voucher, vo);

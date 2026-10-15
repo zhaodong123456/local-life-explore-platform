@@ -40,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     // 每个请求解析一次 Token，构建 SecurityContext 认证信息
     // 未认证请求（如登录接口）直接放行，后续业务接口根据 SecurityContextHolder 认证信息判断是否需要认证
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request,
+    protected void doFilterInternal(@NonNull HttpServletRequest request,//request：HTTP 请求对象，包含请求头、请求体等信息
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
                                         //FilterChain：过滤器链，用于调用后续过滤器处理请求
@@ -51,6 +51,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         //hasText()：判断字符串是否非空且非空白字符
         //SecurityContextHolder.getContext().getAuthentication() == null：判断当前认证信息是否为 null，即未认证
         //若未认证则进行认证，否则直接放行
+        // 条件1: header 中有 Token
+        // 条件2: 当前线程还没有认证信息（防止重复解析）
         if (StringUtils.hasText(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
             //SecurityContextHolder：安全上下文，存储认证信息
             //getContext()：获取当前线程的安全上下文
@@ -79,6 +81,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // authorities：用户角色列表，用于授权用户访问受保护的资源
                 //UsernamePasswordAuthenticationToken：用户名密码认证令牌，包含用户 ID、角色列表
                 //null：密码为空，因为 JWT 认证不使用密码
+                //UsernamePasswordAuthenticationToken(userId, null, authorities)：创建用户名密码认证令牌，包含用户 ID、角色列表
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userId, null, authorities);
                         //setDetails()：设置认证详情，用于存储用户认证信息
@@ -94,7 +97,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 // Token 非法或过期：不设置认证信息，后续由 Security 按未认证处理（401）
                 log.warn("JWT 解析失败：{}", e.getMessage());
-                SecurityContextHolder.clearContext();
+                SecurityContextHolder.clearContext();//// Token 过期/非法/签名不对 → 清空上下文，当作未登录处理
             }
         }
         // 放行请求，继续处理后续过滤器

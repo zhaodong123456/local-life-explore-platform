@@ -2,6 +2,7 @@ package com.explore.platform.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+// 引入 ConfigurationProperties 注解，用于将配置文件中的属性映射到类的字段上
 
 import java.time.Duration;
 

@@ -110,20 +110,26 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         this.seckillOrderProducer = seckillOrderProducer;
         this.rateLimiter = rateLimiter;
 
-        this.seckillScript = new DefaultRedisScript<>();
+        this.seckillScript = new DefaultRedisScript<>();//秒杀原子脚本
+        // DefaultRedisScript<Long> 表示脚本执行结果的类型为 Long
+        // setScriptSource() 设置脚本来源
+        // ResourceScriptSource 从类路径加载脚本文件
+        // ClassPathResource("script/seckill.lua") 表示从 resources/script/seckill.lua 加载脚本
+        // setResultType(Long.class) 表示脚本执行结果的类型为 Long
         this.seckillScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("script/seckill.lua")));
         this.seckillScript.setResultType(Long.class);
 
-        this.rollbackScript = new DefaultRedisScript<>();
+        this.rollbackScript = new DefaultRedisScript<>();//补偿脚本
+        // setScriptText() 设置脚本文本
         this.rollbackScript.setScriptText(
                 "redis.call('incr', KEYS[1]); redis.call('srem', KEYS[2], ARGV[1]); return 1");
         this.rollbackScript.setResultType(Long.class);
     }
 
     @Override
-    public Long seckillVoucher(Long userId, Long voucherId) {
+    public Long seckillVoucher(Long userId, Long voucherId) {// 秒杀优惠券
         // ---------- 1. 接口本地限流（二级；一级在网关），超出直接 429 ----------
-        if (!rateLimiter.tryAcquire(userId)) {
+        if (!rateLimiter.tryAcquire(userId)) {// 尝试放行一次秒杀请求
             throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
         }
 
@@ -148,13 +154,14 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         ensureStockPrewarm(voucherId, seckill.getStock());
 
         // ---------- 4. 预生成订单ID（消息与落库共用，作为幂等标识） ----------
-        long orderId = IdWorker.getId();
+        long orderId = IdWorker.getId();// 生成订单ID
 
         // ---------- 5. Lua 原子：一人一单校验 + 扣库存 + 下单标记 ----------
         String stockKey = CacheKeys.seckillStockKey(voucherId);
         String orderSetKey = CacheKeys.seckillOrderSetKey(voucherId);
         long setTtlSeconds = Math.max(60,
                 Duration.between(now, seckill.getEndTime()).getSeconds() + 3600);
+        // 执行 Lua 脚本，返回结果
         Long luaResult = stringRedisTemplate.execute(seckillScript,
                 List.of(stockKey, orderSetKey),
                 String.valueOf(userId), String.valueOf(setTtlSeconds));
@@ -194,10 +201,10 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         if (exists != null && exists > 0) {
             log.info("订单已存在，幂等丢弃并回补库存：userId={}, voucherId={}",
                     message.getUserId(), message.getVoucherId());
-            refundRedisStock(message.getVoucherId());
+            refundRedisStock(message.getVoucherId());// 回补 Redis 库存
             return;
         }
-        Voucher voucher = voucherMapper.selectById(message.getVoucherId());
+        Voucher voucher = voucherMapper.selectById(message.getVoucherId());// 查询优惠券
         if (voucher == null) {
             log.error("秒杀消息对应优惠券不存在，丢弃并回补库存：voucherId={}", message.getVoucherId());
             refundRedisStock(message.getVoucherId());
@@ -205,7 +212,7 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         }
         try {
             // DB 兜底扣减（Redisson 锁内条件更新，防超卖第二道防线）
-            deductDbStockInConsumer(message.getVoucherId());
+            deductDbStockInConsumer(message.getVoucherId());// 扣减库存
             VoucherOrder order = new VoucherOrder();
             order.setId(message.getOrderId());
             order.setUserId(message.getUserId());
@@ -216,7 +223,7 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
             voucherOrderMapper.insert(order);
         } catch (RuntimeException e) {
             // 扣减失败（DB 售罄）或命中唯一键：本事务回滚，同时回补 Redis 孤儿扣减
-            refundRedisStock(message.getVoucherId());
+            refundRedisStock(message.getVoucherId());// 回补 Redis 库存
             throw e;
         }
     }
@@ -413,7 +420,7 @@ public class VoucherOrderServiceImpl implements VoucherOrderService {
         try {
             String stockKey = CacheKeys.seckillStockKey(voucherId);
             if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(stockKey))) {
-                stringRedisTemplate.opsForValue().increment(stockKey);
+                stringRedisTemplate.opsForValue().increment(stockKey);// 回补库存
             }
         } catch (Exception e) {
             log.error("消费端 Redis 库存回补失败，需人工核对：voucherId={}", voucherId, e);

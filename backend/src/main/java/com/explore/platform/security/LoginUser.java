@@ -2,7 +2,7 @@ package com.explore.platform.security;
 
 import com.explore.platform.entity.User;
 import lombok.Getter;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.GrantedAuthority;//权限接口，用于表示用户具有的权限
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -33,9 +33,11 @@ public class LoginUser implements UserDetails {
      * 权限集合：统一加 ROLE_ 前缀，配合 hasRole('admin') 等表达式使用
      */
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
+    public Collection<? extends GrantedAuthority> getAuthorities() {//获取用户具有的权限集合
         return roles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                //SimpleGrantedAuthority 是 Spring Security 提供的权限实现类，
+                // 用于表示用户具有的权限，如 ROLE_USER、ROLE_MERCHANT、ROLE_ADMIN 等
                 .toList();
     }
 

@@ -66,9 +66,11 @@ public class ShopCacheServiceImpl implements ShopCacheService {
      * 布隆过滤器是否完成初始化/预热（冷启动期间不启用，避免误判合法请求）
      */
     private volatile boolean bloomReady = false;
-
-    public ShopCacheServiceImpl(RedisTemplate<String, Object> redisTemplate,
-                                RedissonClient redissonClient,
+    // 构造函数，注入依赖
+    public ShopCacheServiceImpl(RedisTemplate<String, Object> redisTemplate,//RedisTemplate 是 Spring 提供的 Redis 模板，
+                                // 用于操作 Redis 数据
+                                RedissonClient redissonClient,//RedissonClient 是 Redisson 提供的客户端，
+                                // 用于操作 Redisson 分布式锁、布隆过滤器等分布式数据
                                 ShopMapper shopMapper,
                                 ShopCacheProperties props) {
         this.redisTemplate = redisTemplate;
@@ -115,18 +117,18 @@ public class ShopCacheServiceImpl implements ShopCacheService {
         // 缓存总开关关闭时退化为直接查库
         if (!props.isEnabled()) {
             Shop shop = shopMapper.selectById(id);
-            return shop == null ? null : toVO(shop);
+            return shop == null ? null : toVO(shop);//将 Shop 实体转换为 ShopVO 实体
         }
 
         // ---------- L1：Caffeine ----------
-        CacheEntry entry = caffeine.getIfPresent(id);
+        CacheEntry entry = caffeine.getIfPresent(id);//从 Caffeine 缓存中获取商铺实体
         if (entry != null) {
             return entry.empty() ? null : entry.shop();
         }
 
         // ---------- 本地分段锁：同 JVM 内只放一个线程去查 Redis / 抢分布式锁 ----------
         Object localLock = stripedLocks[(int) (id & 0x7fffffff) % stripedLocks.length];
-        synchronized (localLock) {
+        synchronized (localLock) {//synchronized 关键字，用于实现线程安全，确保在多线程环境下，只有一个线程可以执行同步块中的代码
             // 双重检查 L1（等锁期间可能已被其他线程回填）
             entry = caffeine.getIfPresent(id);
             if (entry != null) {
@@ -134,7 +136,7 @@ public class ShopCacheServiceImpl implements ShopCacheService {
             }
 
             // ---------- L2：Redis ----------
-            RedisRead read = readFromRedis(id);
+            RedisRead read = readFromRedis(id);//从 Redis 二级缓存中读商铺实体
             if (read.hit) {
                 if (read.cachedNull) {
                     // 命中空值标记：回填 L1 短 TTL
@@ -149,12 +151,15 @@ public class ShopCacheServiceImpl implements ShopCacheService {
             if (bloomReady && props.isBloomEnabled() && !bloom.contains(id)) {
                 log.debug("布隆过滤器判定商铺不存在，直接拒绝：shopId={}", id);
                 // 双保险写空值缓存，防止布隆误判窗口/过滤器被重建期间穿透
-                writeNullCaches(id);
+                writeNullCaches(id);//将空值写入 Redis 二级缓存
                 return null;
             }
 
             // ---------- Redisson 分布式锁：集群范围内单点回源（防击穿） ----------
-            RLock rLock = redissonClient.getLock(CacheKeys.shopLock(id));
+            RLock rLock = redissonClient.getLock(CacheKeys.shopLock(id));//获取 Redisson 分布式锁
+            // 尝试加锁，超时时间 props.getLockWaitTime()，租约时间 props.getLockLeaseTime()
+            // 如果加锁成功，返回 true，否则返回 false
+            // 如果加锁失败，返回 false，且不会阻塞当前线程
             boolean locked = false;
             try {
                 locked = rLock.tryLock(
@@ -163,11 +168,11 @@ public class ShopCacheServiceImpl implements ShopCacheService {
                         TimeUnit.MILLISECONDS);
                 if (locked) {
                     // 双重检查 L1 / L2：等锁期间持锁线程可能已完成回填
-                    entry = caffeine.getIfPresent(id);
+                    entry = caffeine.getIfPresent(id);//从 Caffeine 缓存中获取商铺实体
                     if (entry != null) {
                         return entry.empty() ? null : entry.shop();
                     }
-                    RedisRead reread = readFromRedis(id);
+                    RedisRead reread = readFromRedis(id);//从 Redis 二级缓存中读商铺实体
                     if (reread.hit) {
                         if (reread.cachedNull) {
                             putCaffeineEmpty(id);
@@ -199,7 +204,8 @@ public class ShopCacheServiceImpl implements ShopCacheService {
             }
 
             // 未抢到分布式锁：预期持锁线程已回填，短暂等待后读缓存
-            return readAfterLockLost(id);
+            return readAfterLockLost(id);//从 Redis 二级缓存中读商铺实体
+            // 未命中：回源 DB
         }
     }
 
@@ -307,24 +313,25 @@ public class ShopCacheServiceImpl implements ShopCacheService {
     /**
      * 空值写入两级缓存（防穿透）
      */
+
     private void writeNullCaches(Long id) {
         long ttlMs = randomTtlMs(props.getRedisNullTtl(), props.getRedisNullJitter());
         redisTemplate.opsForValue().set(CacheKeys.shopKey(id), CacheKeys.NULL_HOLDER,
-                Duration.ofMillis(ttlMs));
-        putCaffeineEmpty(id);
+                Duration.ofMillis(ttlMs));//Duration.ofMillis() 方法将 long 类型的毫秒数转换为 Duration 毫秒的持续时间
+        putCaffeineEmpty(id);//将空值写入 Caffeine 缓存
     }
-
+    //将空值写入 Caffeine 缓存
     private void putCaffeineEmpty(Long id) {
         long ttlNanos = Duration.ofMillis(
                 randomTtlMs(props.getCaffeineNullTtl(), props.getCaffeineNullJitter())).toNanos();
         caffeine.put(id, CacheEntry.empty(ttlNanos));
     }
-
+    //将商铺实体写入 Redis 二级缓存
     private void writeRedis(Long id, ShopVO vo) {
         long ttlMs = randomTtlMs(props.getRedisTtl(), props.getRedisJitter());
         redisTemplate.opsForValue().set(CacheKeys.shopKey(id), vo, Duration.ofMillis(ttlMs));
     }
-
+    //将商铺实体写入 Caffeine 缓存
     private long caffeineTtlNanos(boolean empty) {
         long ttlMs = empty
                 ? randomTtlMs(props.getCaffeineNullTtl(), props.getCaffeineNullJitter())
@@ -337,7 +344,7 @@ public class ShopCacheServiceImpl implements ShopCacheService {
      */
     private long randomTtlMs(Duration base, Duration jitter) {
         long jitterMs = jitter.toMillis();
-        long extra = jitterMs <= 0 ? 0 : ThreadLocalRandom.current().nextLong(jitterMs);
+        long extra = jitterMs <= 0 ? 0 : ThreadLocalRandom.current().nextLong(jitterMs);//随机生成 [0, jitterMs) 之间的整数
         return base.toMillis() + extra;
     }
 
@@ -357,7 +364,7 @@ public class ShopCacheServiceImpl implements ShopCacheService {
 
     private ShopVO toVO(Shop shop) {
         ShopVO vo = new ShopVO();
-        BeanUtils.copyProperties(shop, vo);
+        BeanUtils.copyProperties(shop, vo);//将 Shop 实体的属性值复制到 ShopVO 实体中
         return vo;
     }
 

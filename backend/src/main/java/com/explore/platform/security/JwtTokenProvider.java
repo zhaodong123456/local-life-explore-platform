@@ -22,12 +22,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
-    private final JwtProperties jwtProperties;
+    private final JwtProperties jwtProperties;//JWT属性，包含签名密钥和有效期
 
-    private SecretKey secretKey;
+    private SecretKey secretKey;//签名密钥，用于生成和验证JWT令牌
 
-    @PostConstruct
-    public void init() {
+    @PostConstruct//PostConstruct注解，用于在 bean 初始化完成后执行初始化操作
+    public void init() {//初始化签名密钥
         this.secretKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
@@ -40,9 +40,10 @@ public class JwtTokenProvider {
     public String generateToken(LoginUser loginUser) {
         Date now = new Date();
         Date expirationDate = new Date(now.getTime() + jwtProperties.getExpiration());
-        return Jwts.builder()
+        return Jwts.builder()//builder 方法用于创建 JWT 构建器
                 // subject 存放用户ID
                 .subject(String.valueOf(loginUser.getUser().getId()))
+                //claim 存放用户手机号
                 .claim("phone", loginUser.getUser().getPhone())
                 // 角色编码列表：user / merchant / admin
                 .claim("roles", loginUser.getRoles())
@@ -59,7 +60,7 @@ public class JwtTokenProvider {
      * @return Claims
      * @throws JwtException token 非法或已过期时抛出
      */
-    public Claims parseToken(String token) {
+    public Claims parseToken(String token) {//解析并校验 JWT
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
@@ -71,7 +72,7 @@ public class JwtTokenProvider {
      * 从 Claims 中取角色编码列表
      */
     @SuppressWarnings("unchecked")
-    public List<String> extractRoles(Claims claims) {
+    public List<String> extractRoles(Claims claims) {//从 Claims 中取角色编码列表
         Object roles = claims.get("roles");
         return roles == null ? List.of() : (List<String>) roles;
     }

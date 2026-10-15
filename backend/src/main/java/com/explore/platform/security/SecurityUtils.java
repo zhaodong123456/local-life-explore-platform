@@ -2,8 +2,8 @@ package com.explore.platform.security;
 
 import com.explore.platform.common.exception.BusinessException;
 import com.explore.platform.common.result.ErrorCode;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;//认证对象
+import org.springframework.security.core.context.SecurityContextHolder;//安全上下文
 
 /**
  * 安全上下文工具：获取当前登录用户ID
@@ -31,6 +31,10 @@ public final class SecurityUtils {
      * 用于"公开接口但登录后展示个性化信息"的场景（如点评列表的 liked 标记）。
      */
     public static Long getCurrentUserIdOrNull() {
+        //Authentication：认证对象，包含用户ID、角色等信息
+        //SecurityContextHolder：安全上下文，包含当前线程的认证信息
+        //authentication：获取当前认证对象，包含用户ID、角色等信息
+        //authentication.getPrincipal()：获取认证对象的主体，这里返回用户ID
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof Long userId)) {
             return null;
