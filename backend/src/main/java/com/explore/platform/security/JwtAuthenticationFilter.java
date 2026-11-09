@@ -73,9 +73,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 //toList()：将流转换为列表
                 //ROLE_ 前缀：角色名称前缀，用于标识角色类型
                 //SimpleGrantedAuthority("ROLE_" + role)：创建 SimpleGrantedAuthority 实例，存储角色名称
-                List<GrantedAuthority> authorities = roles.stream()
-                        .map(role -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + role))
-                        .toList();
+                    List<GrantedAuthority> authorities = roles.stream()
+                            .map(role -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
 
                 // principal 直接放用户ID，后续业务接口可通过 @AuthenticationPrincipal / 工具类获取
                 // authorities：用户角色列表，用于授权用户访问受保护的资源
@@ -107,7 +107,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     // 从请求头中提取 Token，移除前缀 "Bearer "
     // 未认证请求（如登录接口）直接放行，后续业务接口根据 SecurityContextHolder 认证信息判断是否需要认证
     private String resolveToken(HttpServletRequest request) {
-        String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
+        String bearerToken = request.getHeader(AUTHORIZATION_HEADER);//从请求头中提取 Token
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
             return bearerToken.substring(BEARER_PREFIX.length());
         }

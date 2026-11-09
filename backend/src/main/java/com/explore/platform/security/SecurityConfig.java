@@ -30,13 +30,13 @@ import org.springframework.web.cors.CorsConfigurationSource;
 @EnableMethodSecurity(prePostEnabled = true)//开启方法级权限校验
 @RequiredArgsConstructor
 public class SecurityConfig {
-
+    // JWT�证过滤器
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
+    // 跨域配置源
     private final CorsConfigurationSource corsConfigurationSource;
-
+    // 认证入口点
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
-
+    // 权限不足处理程序
     private final RestAccessDeniedHandler accessDeniedHandler;
 
     /**
@@ -62,12 +62,16 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // 登录、注册放行
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                         // 公开商铺浏览（列表/详情/券列表/点评分页）仅限 GET；
                         // POST 发布点评等写操作仍需认证，商家管理端 /api/merchant/shops 不受影响
                         .requestMatchers(HttpMethod.GET, "/api/shops/**").permitAll()
+                        // 公开接口文档资源放行
                         .requestMatchers(DOC_WHITELIST).permitAll()
+                        // 其余接口必须认证
                         .requestMatchers("/api/**").authenticated()
+                        // 其他请求放行
                         .anyRequest().permitAll())
                 // 未认证返回401 / 权限不足返回403（统一JSON）
                 .exceptionHandling(ex -> ex

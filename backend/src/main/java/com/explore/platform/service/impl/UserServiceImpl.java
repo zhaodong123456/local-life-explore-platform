@@ -36,7 +36,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRoleMapper userRoleMapper;
 
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;// 密码编码器
 
     /**
      * 注册：手机号唯一校验 → 密码 BCrypt 加密 → 建账号 → 授予 user 角色

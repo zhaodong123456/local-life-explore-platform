@@ -47,9 +47,13 @@ public class JwtTokenProvider {
                 .claim("phone", loginUser.getUser().getPhone())
                 // 角色编码列表：user / merchant / admin
                 .claim("roles", loginUser.getRoles())
+                // 签发时间
                 .issuedAt(now)
+                // 过期时间
                 .expiration(expirationDate)
+                // 签名密钥
                 .signWith(secretKey)
+                // 生成 JWT 字符串
                 .compact();
     }
 
@@ -65,6 +69,7 @@ public class JwtTokenProvider {
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
+                // 获取 JWT 有效载荷
                 .getPayload();
     }
 

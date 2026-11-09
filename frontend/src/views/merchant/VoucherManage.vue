@@ -159,7 +159,16 @@ const rules = {
   title: [{ required: true, message: '请输入券标题', trigger: 'blur' }],
   payValue: [{ required: true, message: '请输入售价', trigger: 'blur' }],
   actualValue: [{ required: true, message: '请输入门槛金额', trigger: 'blur' }],
-  beginTime: [{ required: true, message: '请选择有效期', trigger: 'change' }],
+  beginTime: [{
+    validator: (_, value, cb) => {
+      if (!dateRange.value || dateRange.value.length !== 2) {
+        cb(new Error('请选择有效期'))
+      } else {
+        cb()
+      }
+    },
+    trigger: 'change'
+  }],
   stock: [{ required: true, message: '请输入秒杀库存', trigger: 'blur' }]
 }
 

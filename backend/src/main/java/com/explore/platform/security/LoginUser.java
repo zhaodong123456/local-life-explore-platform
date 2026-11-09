@@ -1,10 +1,10 @@
 package com.explore.platform.security;
 
 import com.explore.platform.entity.User;
-import lombok.Getter;
+import lombok.Getter;//获取属性值的注解
 import org.springframework.security.core.GrantedAuthority;//权限接口，用于表示用户具有的权限
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetails;//用户详情接口，用于表示用户信息
 
 import java.util.Collection;
 import java.util.List;
